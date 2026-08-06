@@ -1,7 +1,9 @@
 const express = require("express");
-
+const connectDB = require("./config/db");
+const Task = require("./models/Task");
 const app = express();
 const PORT = 5000;
+connectDB();
 
 // Middleware to parse JSON
 app.use(express.json());
@@ -62,48 +64,117 @@ app.get("/", (req, res) => {
 });
 
 // GET All Tasks
-app.get("/tasks", (req, res) => {
-  res.status(200).json(tasks);
+app.get("/tasks", async (req, res) => {
+  try {
+    const tasks = await Task.find();
+
+    res.status(200).json(tasks);
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+});
+
+app.get("/tasks/:id", async (req, res) => {
+
+  try {
+
+    const task = await Task.findById(req.params.id);
+
+    if (!task) {
+
+      return res.status(404).json({
+        message: "Task not found",
+      });
+
+    }
+
+    res.status(200).json(task);
+
+  } catch (error) {
+
+    res.status(500).json({
+      message: error.message,
+    });
+
+  }
+
 });
 
 // POST New Task
-app.post("/tasks", (req, res) => {
-  const { title, completed } = req.body;
+app.post("/tasks", async (req, res) => {
+  try {
+    const task = await Task.create(req.body);
 
-  const newTask = {
-    id: Date.now(),
-    title,
-    completed,
-  };
-
-  tasks.push(newTask);
-
-  res.status(201).json({
-    message: "Task added successfully",
-    task: newTask,
-  });
+    res.status(201).json({
+      message: "Task Added Successfully",
+      task,
+    });
+  } catch (error) {
+    res.status(400).json({
+      message: error.message,
+    });
+  }
 });
 
 // PUT Update Task
-app.put("/tasks/:id", validateTaskId, (req, res) => {
-  const { title, completed } = req.body;
+app.put("/tasks/:id", async (req, res) => {
+  try {
+    const task = await Task.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
 
-  req.task.title = title;
-  req.task.completed = completed;
+    if (!task) {
+      return res.status(404).json({
+        message: "Task not found",
+      });
+    }
 
-  res.status(200).json({
-    message: "Task updated successfully",
-    task: req.task,
-  });
+    res.status(200).json({
+      message: "Task Updated Successfully",
+      task,
+    });
+
+  } catch (error) {
+    res.status(400).json({
+      message: error.message,
+    });
+  }
 });
 
 // DELETE Task
-app.delete("/tasks/:id", validateTaskId, (req, res) => {
-  tasks = tasks.filter((t) => t.id !== req.task.id);
+app.delete("/tasks/:id", async (req, res) => {
 
-  res.status(200).json({
-    message: "Task deleted successfully",
-  });
+  try {
+
+    const task = await Task.findByIdAndDelete(req.params.id);
+
+    if (!task) {
+
+      return res.status(404).json({
+        message: "Task not found",
+      });
+
+    }
+
+    res.status(200).json({
+      message: "Task Deleted Successfully",
+    });
+
+  } catch (error) {
+
+    res.status(500).json({
+      message: error.message,
+    });
+
+  }
+
 });
 
 // 404 Route Handler
