@@ -5,8 +5,13 @@ const app = express();
 const PORT = 5000;
 connectDB();
 
+const cors = require("cors");
+
 // Middleware to parse JSON
 app.use(express.json());
+
+// Enable CORS
+app.use(cors());
 
 // Logging Middleware
 app.use((req, res, next) => {
