@@ -30,9 +30,11 @@ const taskSchema = new mongoose.Schema({
   },
 });
 
-taskSchema.pre("save", function (next) {
+taskSchema.pre("save", function () {
+  if (this.title) {
+    this.title = this.title.trim();
+  }
   console.log("Saving Task:", this.title);
-  next();
 });
 
 const Task = mongoose.model("Task", taskSchema);

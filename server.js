@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require("express");
 const connectDB = require("./config/db");
 const Task = require("./models/Task");
@@ -63,10 +64,20 @@ function validateTaskId(req, res, next) {
   next();
 }
 
+const authRoutes = require("./routes/auth");
+const authMiddleware = require("./middleware/auth");
+const validateTask = require("./middleware/validateTask");
+
 // Home Route
 app.get("/", (req, res) => {
   res.send("Task Manager API is Running...");
 });
+
+// Auth Routes
+app.use("/auth", authRoutes);
+
+// Apply Auth & Validation Middleware to all /tasks routes
+app.use("/tasks", authMiddleware, validateTask);
 
 // GET All Tasks
 app.get("/tasks", async (req, res) => {
