@@ -68,6 +68,7 @@ const authRoutes = require("./routes/auth");
 const authMiddleware = require("./middleware/auth");
 const validateTask = require("./middleware/validateTask");
 const { cache, stats, getCacheStats, clearCacheAndStats } = require("./config/cache");
+const taskEvents = require("./events/taskEvents");
 
 // Home Route
 app.get("/", (req, res) => {
@@ -151,17 +152,35 @@ app.get("/tasks/:id", async (req, res) => {
   }
 });
 
-// POST New Task (Cache Invalidation)
+// POST New Task (Cache Invalidation + Asynchronous Event)
 app.post("/tasks", async (req, res) => {
   try {
     const task = await Task.create(req.body);
 
-    // Invalidate All Tasks cache upon new creation
+    // Invalidate All Tasks cache upon new creation (Practical 9)
     cache.del("tasks:all");
 
+    const responseTimestamp = new Date().toISOString();
+
+    // Send API response immediately before background notification processing (Practical 10)
     res.status(201).json({
       message: "Task Added Successfully",
       task,
+    });
+
+    console.log(`[API RESPONSE] Task created successfully at: ${responseTimestamp}`);
+
+    // Asynchronously dispatch the task-created event without blocking the client
+    setImmediate(() => {
+      const emitTimestamp = new Date().toISOString();
+      console.log(`[EVENT] task-created emitted at: ${emitTimestamp}`);
+      taskEvents.emit("task-created", {
+        id: task._id,
+        title: task.title,
+        priority: task.priority,
+        user: req.user?.id || "Authenticated User",
+        triggerError: Boolean(req.body.triggerError),
+      });
     });
   } catch (error) {
     res.status(400).json({
