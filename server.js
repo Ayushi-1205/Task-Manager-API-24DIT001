@@ -3,7 +3,7 @@ const express = require("express");
 const connectDB = require("./config/db");
 const Task = require("./models/Task");
 const app = express();
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 connectDB();
 
 const cors = require("cors");
