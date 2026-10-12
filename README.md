@@ -113,3 +113,33 @@ docker compose down
 - **Practical 9**: In-memory caching with `node-cache`, cache invalidation on write, `/debug/cache`, and `.lean()` query optimization.
 - **Practical 10**: Asynchronous event-driven architecture using Node.js `EventEmitter` for background notification processing with zero HTTP latency overhead.
 - **Practical 11**: Containerization with multi-stage Dockerfiles and Docker Compose orchestration.
+- **Practical 12**: Continuous Integration (CI) pipeline using GitHub Actions, automated backend test suite with Jest and Supertest.
+
+---
+
+## Practical 12: CI/CD Pipeline with GitHub Actions
+
+### 1. Automated Testing Suite
+The backend includes automated integration tests located in `tests/api.test.js`:
+- **Framework**: Jest & Supertest
+- **Run Tests Locally**:
+  ```bash
+  npm test
+  ```
+- **Test Coverage**:
+  - Health endpoint (`GET /`)
+  - Cache statistics debug endpoint (`GET /debug/cache`)
+  - Authentication middleware protection (`GET /tasks` & `POST /tasks` without token returning 401)
+  - Validation middleware (`POST /tasks` with missing fields returning 400)
+  - Authenticated task queries (`GET /tasks` with valid JWT returning 200)
+  - Task creation and asynchronous event processing (`POST /tasks` returning 201)
+
+### 2. GitHub Actions Workflow (`.github/workflows/ci.yml`)
+- **Trigger**: Automatic on `push` to `main`, and manual dispatch (`workflow_dispatch`).
+- **Runner**: `ubuntu-latest`
+- **Services**: Containerized MongoDB service (`mongo:latest`) on port `27017` with automated health checks.
+- **Pipeline Steps**:
+  1. Check out repository (`actions/checkout@v4`)
+  2. Set up Node.js 20 runtime (`actions/setup-node@v4` with npm caching)
+  3. Clean dependency installation (`npm ci`)
+  4. Execute automated backend test suite (`npm test`)
