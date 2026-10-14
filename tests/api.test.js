@@ -1,6 +1,7 @@
 const request = require("supertest");
 const jwt = require("jsonwebtoken");
 const mongoose = require("mongoose");
+const { OpenAI } = require("openai");
 const app = require("../server");
 
 describe("Task Manager API - Automated CI Tests (Practical 12)", () => {
@@ -102,5 +103,113 @@ describe("Task Manager API - Automated CI Tests (Practical 12)", () => {
       // Await completion of Practical 10 asynchronous background notification processing (2s timer)
       await new Promise((resolve) => setTimeout(resolve, 2200));
     }, 10000);
+  });
+
+  describe("5. AI Description Generation (Practical 13)", () => {
+    test("POST /api/ai/generate-description without auth header returns 401 Unauthorized", async () => {
+      const response = await request(app)
+        .post("/api/ai/generate-description")
+        .set("Content-Type", "application/json")
+        .send({ title: "Design Landing Page" });
+      expect(response.statusCode).toBe(401);
+      expect(response.body).toHaveProperty("message", "Missing or malformed Authorization header");
+    });
+
+    test("POST /api/ai/generate-description with missing title returns 400 Bad Request", async () => {
+      const response = await request(app)
+        .post("/api/ai/generate-description")
+        .set("Authorization", `Bearer ${authToken}`)
+        .set("Content-Type", "application/json")
+        .send({});
+      expect(response.statusCode).toBe(400);
+      expect(response.body).toHaveProperty(
+        "message",
+        "Title is required and must be a non-empty string"
+      );
+    });
+
+    test("POST /api/ai/generate-description with empty title returns 400 Bad Request", async () => {
+      const response = await request(app)
+        .post("/api/ai/generate-description")
+        .set("Authorization", `Bearer ${authToken}`)
+        .set("Content-Type", "application/json")
+        .send({ title: "   " });
+      expect(response.statusCode).toBe(400);
+      expect(response.body).toHaveProperty(
+        "message",
+        "Title is required and must be a non-empty string"
+      );
+    });
+
+    test("POST /api/ai/generate-description with unconfigured/missing API key returns handled fallback with fallback: true", async () => {
+      const originalKey = process.env.OPENAI_API_KEY;
+      delete process.env.OPENAI_API_KEY;
+
+      const response = await request(app)
+        .post("/api/ai/generate-description")
+        .set("Authorization", `Bearer ${authToken}`)
+        .set("Content-Type", "application/json")
+        .send({ title: "Refactor Database Schema" });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toHaveProperty("fallback", true);
+      expect(response.body).toHaveProperty("description");
+      expect(response.body.description).toContain("manually");
+
+      if (originalKey) process.env.OPENAI_API_KEY = originalKey;
+    });
+
+    test("POST /api/ai/generate-description with valid title and mocked AI response returns 200 with fallback: false", async () => {
+      process.env.OPENAI_API_KEY = "sk-test-mock-valid-key";
+
+      const mockDescription =
+        "Refactor MongoDB schemas to optimize query performance and reduce memory usage.";
+      const createSpy = jest
+        .spyOn(OpenAI.Chat.Completions.prototype, "create")
+        .mockResolvedValueOnce({
+          choices: [
+            {
+              message: {
+                content: mockDescription,
+              },
+            },
+          ],
+        });
+
+      const response = await request(app)
+        .post("/api/ai/generate-description")
+        .set("Authorization", `Bearer ${authToken}`)
+        .set("Content-Type", "application/json")
+        .send({ title: "Refactor Database Schema" });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toEqual({
+        description: mockDescription,
+        fallback: false,
+      });
+
+      createSpy.mockRestore();
+    });
+
+    test("POST /api/ai/generate-description handles AI provider errors/timeouts gracefully with fallback: true", async () => {
+      process.env.OPENAI_API_KEY = "sk-test-mock-valid-key";
+
+      const createSpy = jest
+        .spyOn(OpenAI.Chat.Completions.prototype, "create")
+        .mockRejectedValueOnce(new Error("Rate limit exceeded / Timeout"));
+
+      const response = await request(app)
+        .post("/api/ai/generate-description")
+        .set("Authorization", `Bearer ${authToken}`)
+        .set("Content-Type", "application/json")
+        .send({ title: "Build CI Pipeline" });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toHaveProperty("fallback", true);
+      expect(response.body).toHaveProperty("description");
+      expect(response.body.description).toContain("manually");
+
+      createSpy.mockRestore();
+    });
   });
 });

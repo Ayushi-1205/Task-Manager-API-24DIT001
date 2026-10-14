@@ -114,6 +114,7 @@ docker compose down
 - **Practical 10**: Asynchronous event-driven architecture using Node.js `EventEmitter` for background notification processing with zero HTTP latency overhead.
 - **Practical 11**: Containerization with multi-stage Dockerfiles and Docker Compose orchestration.
 - **Practical 12**: Continuous Integration (CI) pipeline using GitHub Actions, automated backend test suite with Jest and Supertest.
+- **Practical 13**: AI API Integration using the OpenAI SDK for automated task description generation, prompt engineering, graceful fallback error handling, and responsible AI disclosures.
 
 ---
 
@@ -143,3 +144,52 @@ The backend includes automated integration tests located in `tests/api.test.js`:
   2. Set up Node.js 20 runtime (`actions/setup-node@v4` with npm caching)
   3. Clean dependency installation (`npm ci`)
   4. Execute automated backend test suite (`npm test`)
+
+---
+
+## Practical 13: AI API Integration into a Web Application
+
+### 1. Overview
+Practical 13 integrates OpenAI's API (`gpt-4o-mini` / official `openai` SDK) into the Task Manager application to automatically generate context-aware, actionable task descriptions from task titles. The design emphasizes security, robust error handling, graceful offline fallbacks, and responsible AI practices.
+
+### 2. Endpoint Specification
+
+- **Method**: `POST`
+- **Path**: `/api/ai/generate-description`
+- **Authentication**: Required (`authMiddleware` via `Authorization: Bearer <token>`)
+
+#### Request Headers:
+```http
+Content-Type: application/json
+Authorization: Bearer <jwt_token>
+```
+
+#### Request Body:
+```json
+{
+  "title": "Implement User Authentication"
+}
+```
+
+#### Response (Success - AI Available):
+```json
+{
+  "description": "Design and implement secure JWT-based user authentication, including login, registration, password hashing with bcrypt, and protected API routes.",
+  "fallback": false
+}
+```
+
+#### Response (Graceful Fallback - Missing Key / Provider Outage / Rate Limit / Timeout):
+```json
+{
+  "description": "AI description is temporarily unavailable. Please enter the description manually.",
+  "fallback": true
+}
+```
+
+### 3. Architecture and Key Features
+- **Server-Side API Proxying**: The client never directly calls the OpenAI API. All AI requests flow through the Express backend, keeping API credentials secure.
+- **Title Validation**: Rejects missing, empty, or non-string titles, and enforces a maximum length of 200 characters.
+- **Configurable & Safe Fallback**: If `OPENAI_API_KEY` is missing or placeholder (`your_api_key_here`), the endpoint returns a clear, non-blocking fallback response without crashing or raising 500 errors.
+- **Request Timeout**: Configured with a 10,000ms timeout to prevent hanging connections.
+- **Responsible AI Disclosure**: Both backend responses and the frontend UI state that the output is an AI-generated suggestion that users must review and edit before saving.

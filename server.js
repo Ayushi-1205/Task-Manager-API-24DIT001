@@ -65,6 +65,7 @@ function validateTaskId(req, res, next) {
 }
 
 const authRoutes = require("./routes/auth");
+const aiRoutes = require("./routes/ai");
 const authMiddleware = require("./middleware/auth");
 const validateTask = require("./middleware/validateTask");
 const { cache, stats, getCacheStats, clearCacheAndStats } = require("./config/cache");
@@ -90,6 +91,9 @@ app.delete("/debug/cache", (req, res) => {
 
 // Auth Routes
 app.use("/auth", authRoutes);
+
+// AI Routes (Practical 13)
+app.use("/api/ai", aiRoutes);
 
 // Apply Auth & Validation Middleware to all /tasks routes
 app.use("/tasks", authMiddleware, validateTask);
